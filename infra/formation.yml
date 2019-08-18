@@ -1,0 +1,91 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: An AWS Serverless Specification for shipping CloudWatch logs to Logentries.
+Resources:
+
+  LambdaRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+
+  #
+  # When
+  #
+
+  WhenLambda:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      CodeUri: _build/when.zip
+      FunctionName: 'whendo-when'
+      Handler: 'when'
+      Runtime: go1.x
+      Description: 'Fire off events happening at a specific time.'
+      Environment:
+        Variables:
+          LOGLEVEL: 'WARNING'
+      MemorySize: 128
+      Timeout: 60
+      Role: !GetAtt LambdaRole.Arn
+
+  WhenLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    DependsOn: WhenLambda
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${WhenLambda}'
+      RetentionInDays: 7
+      
+  WhenQueue:
+    Type: AWS::SQS::Queue
+
+  WhenScheduledRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Schedule the When Lamba to check for stuff to Do"
+      ScheduleExpression: "rate(1 minute)"
+      State: "ENABLED"
+      Targets:
+        - Arn: !GetAtt WhenLambda.Arn
+          Id: "when-lambda"
+
+  PermissionForEventsToInvokeWhenLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref WhenLambda
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt WhenScheduledRule.Arn
+
+  #
+  # Do
+  #
+
+  DoLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: _build/do.zip
+      FunctionName: 'whendo-do'
+      Handler: 'do'
+      Runtime: go1.x
+      Environment:
+        Variables:
+          LOGLEVEL: 'WARNING'
+      Events:
+        RunWhens:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt WhenQueue.Arn
+            BatchSize: 10
+
+  DoLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    DependsOn: WhenLambda
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${DoLambda}'
+      RetentionInDays: 7
