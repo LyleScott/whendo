@@ -13,7 +13,14 @@ import (
 func init() {
 	log.SetFormatter(&log.JSONFormatter{})
 	log.SetOutput(os.Stdout)
-	log.SetLevel(log.WarnLevel)
+	switch os.Getenv("LOGLEVEL") {
+	case "DEBUG": log.SetLevel(log.DebugLevel)
+	case "INFO": log.SetLevel(log.InfoLevel)
+	case "WARNING": log.SetLevel(log.WarnLevel)
+	case "WARN": log.SetLevel(log.WarnLevel)
+	default: log.SetLevel(log.WarnLevel)
+	}
+	log.SetLevel(log.DebugLevel)
 
 	log.Debug("Lambda triggered")
 }

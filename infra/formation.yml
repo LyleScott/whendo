@@ -49,7 +49,7 @@ Resources:
     Properties:
       Description: "Schedule the When Lamba to check for stuff to Do"
       ScheduleExpression: "rate(1 minute)"
-      State: "ENABLED"
+      State: "DISABLED"
       Targets:
         - Arn: !GetAtt WhenLambda.Arn
           Id: "when-lambda"

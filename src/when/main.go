@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	log "github.com/sirupsen/logrus"
@@ -27,7 +26,6 @@ func init() {
 }
 
 func Handler(ctx context.Context, event events.CloudWatchEvent) {
-	fmt.Println("Handler entry!")
 	log.WithFields(log.Fields{
 		"event": event,
 	}).Debug("Lambda triggered")
